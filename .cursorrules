@@ -4,8 +4,9 @@ A bot manager that receives signals from trading view to make trades on hyperliq
 
 ## Frameworks
 
-- Nuxt - https://nuxt.com/docs/4.x/getting-started/introduction
-- vuetify - https://vuetifyjs.com/en/
+- vite
+- vue3
+- expressJS
 - cctx - https://docs.ccxt.com/
 - supabase - https://supabase.com/docs
 
