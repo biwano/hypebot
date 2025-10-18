@@ -6,6 +6,7 @@ import ViteExpress from "vite-express";
 // Import API routes
 import botRoutes from './routes/bots'
 import accountRoutes from './routes/account'
+import debugRoutes from './routes/debug'
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json())
 // API routes
 app.use('/api/bots', botRoutes)
 app.use('/api/account', accountRoutes)
+app.use('/api/debug', debugRoutes)
 
 // Health check
 app.get('/api/health', (_, res) => {

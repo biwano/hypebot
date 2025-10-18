@@ -31,14 +31,7 @@ export class HyperliquidExchange {
   async getPosition(symbol: string): Promise<ExchangePosition | null> {
     try {
       if (!this.exchange) {
-        // Mock response when exchange is not available
-        return {
-          symbol,
-          size: 0,
-          side: 'long',
-          entryPrice: 0,
-          unrealizedPnl: 0
-        }
+        return null
       }
 
       console.log(`Getting position for ${symbol}`)
@@ -48,10 +41,10 @@ export class HyperliquidExchange {
       if (position) {
         return {
           symbol: position.symbol,
-          size: position.contracts,
+          size: position.contracts || 0,
           side: position.side as 'long' | 'short',
-          entryPrice: position.entryPrice,
-          unrealizedPnl: position.unrealizedPnl
+          entryPrice: position.entryPrice || 0,
+          unrealizedPnl: position.unrealizedPnl || 0
         }
       }
       
@@ -65,8 +58,7 @@ export class HyperliquidExchange {
   async placeOrder(symbol: string, side: 'buy' | 'sell', amount: number, leverage: number = 5): Promise<boolean> {
     try {
       if (!this.exchange) {
-        console.log(`Exchange not available - simulating ${side} order for ${amount} ${symbol}`)
-        return true
+        return false
       }
 
       console.log(`Placing ${side} order for ${amount} ${symbol} with ${leverage}x leverage`)
@@ -86,8 +78,7 @@ export class HyperliquidExchange {
   async closePosition(symbol: string): Promise<boolean> {
     try {
       if (!this.exchange) {
-        console.log(`Exchange not available - simulating position close for ${symbol}`)
-        return true
+        return false
       }
 
       console.log(`Closing position for ${symbol}`)
@@ -114,13 +105,10 @@ export class HyperliquidExchange {
   async getAccountInfo(): Promise<{ balance: number; positions: any[] } | null> {
     try {
       if (!this.exchange) {
-        return {
-          balance: 10000,
-          positions: []
-        }
+        return null
       }
 
-      const balance = await this.exchange.fetchBalance({}, { user: this.user })
+      const balance = await this.exchange.fetchBalance({ user: this.user })
       const positions = await this.exchange.fetchPositions()
 
       console.log('Balance:', balance)
@@ -138,8 +126,7 @@ export class HyperliquidExchange {
   async getUSDCBalance(): Promise<number> {
     try {
       if (!this.exchange) {
-        console.log('Exchange not available - returning mock USDC balance')
-        return 10000.50
+        return 0
       }
 
       console.log('Getting USDC balance from Hyperliquid')
@@ -153,13 +140,53 @@ export class HyperliquidExchange {
     }
   }
 
-  async getAccountBalance(): Promise<{ usdcBalance: number }> {
+  async getAccountBalance(): Promise<{ usdcBalance: number } | null> {
     try {
+      if (!this.exchange) {
+        return null
+      }
+      
       const usdcBalance = await this.getUSDCBalance()
       return { usdcBalance }
     } catch (error) {
       console.error('Error getting account balance:', error)
-      return { usdcBalance: 0 }
+      return null
+    }
+  }
+
+  async getTradingPairs(): Promise<any[]> {
+    try {
+      if (!this.exchange) {
+        return []
+      }
+
+      console.log('Fetching trading pairs from Hyperliquid')
+      const markets = await this.exchange.fetchMarkets()
+      
+      return markets.map(market => ({
+        symbol: market?.symbol || '',
+        base: market?.base || '',
+        quote: market?.quote || '',
+        active: market?.active || false,
+        type: market?.type || '',
+        spot: market?.spot || false,
+        margin: market?.margin || false,
+        future: market?.future || false,
+        option: market?.option || false,
+        contract: market?.contract || false,
+        settle: market?.settle || '',
+        settleId: market?.settleId || '',
+        contractSize: market?.contractSize || 0,
+        linear: market?.linear || false,
+        inverse: market?.inverse || false,
+        taker: market?.taker || 0,
+        maker: market?.maker || 0,
+        limits: market?.limits || {},
+        info: market?.info || {}
+      }))
+    } catch (error) {
+      console.error('Error getting trading pairs:', error)
+      return []
     }
   }
 }
