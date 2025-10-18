@@ -1,0 +1,67 @@
+# HypeBot
+
+A bot manager that receives signals from trading view to make trades on hyperliquid.
+
+## Frameworks
+
+- Nuxt - https://nuxt.com/docs/4.x/getting-started/introduction
+- vuetify - https://vuetifyjs.com/en/
+- cctx - https://docs.ccxt.com/
+- supabase - https://supabase.com/docs
+
+## Bots
+
+### In the database 
+They are represented in the database as a Row in the bots table. 
+We must store at least
+ - Their name
+ - The pair they are trading
+ - The last desiredDirection
+
+### In the application (Server side)
+
+The bot is just a function that ensures that the desired_direction is applied on the exchange.
+The function is never executed concurrently for the same bot.
+The function is executed:
+ - when a signal a revceive
+ - periodically - using hywax/nuxt-cron - https://github.com/hywax/nuxt-cron
+
+## Signal
+
+The signal coming from trading view has this body:
+`
+{
+  "desired_direction": 1
+}`
+
+The only thing important is the desired direction. 
+- 1 means long 5X
+- -1 means short 5X
+- 0 means exit position
+- Anything else should be proportional
+
+The signal will wrrive on the endpoint used to update a bot
+
+When the signal is received:
+- the desired_direction is saved in the database
+- the bot function is called
+
+## UI
+
+The UI enables to:
+- Create bots
+- Delete bots
+- Exit bots
+- Visualize bots (database + exchange information)
+
+## Project Structure
+
+- Pages are located in `/app/pages/` directory
+- Server API routes are in `/server/api/` directory
+- Services are in `/server/services/` directory
+- Types are in `/types/` directory
+
+
+
+
+
