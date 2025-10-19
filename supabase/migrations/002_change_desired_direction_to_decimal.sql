@@ -1,0 +1,1 @@
+alter table "public"."bots" alter column "desired_direction" set data type numeric using "desired_direction"::numeric;

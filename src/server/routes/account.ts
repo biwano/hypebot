@@ -1,23 +1,23 @@
 import express, { Request, Response } from 'express'
 import { HyperliquidExchange } from '../services/exchange.js'
 import type { ApiResponse } from '../../shared/types.js'
+import type { Balances, Position } from 'ccxt'
 
 const router = express.Router()
 
-// GET /api/account - Get account balance
-router.get('/', async (req: Request, res: Response<ApiResponse<{ usdcBalance: number }>>) => {
+// GET /api/account - Get account balance and positions
+router.get('/', async (req: Request, res: Response<ApiResponse<{ balance: Balances; positions: Position[] }>>) => {
   try {
     const exchange = new HyperliquidExchange()
-    const accountBalance = await exchange.getAccountBalance()
+    const [balance, positions] = await Promise.all([
+      exchange.getBalance(),
+      exchange.getPositions()
+    ])
 
-    if (!accountBalance) {
-      return res.status(503).json({ data: null, error: 'Exchange not available - API credentials not configured' })
-    }
-
-    res.json({ data: accountBalance, error: null })
+    res.json({ data: { balance, positions }, error: null })
   } catch (error: any) {
-    console.error('Error fetching account balance:', error)
-    res.status(500).json({ data: null, error: error.message || 'Failed to fetch account balance' })
+    console.error('Error fetching account data:', error)
+    res.status(500).json({ data: null, error: error.message || 'Failed to fetch account data' })
   }
 })
 

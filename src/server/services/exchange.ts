@@ -1,192 +1,137 @@
-import ccxt, { Exchange} from 'ccxt'
-import type { ExchangePosition } from '../../shared/types.js'
+import ccxt, { Exchange, Position, Market, Balances, Ticker} from 'ccxt'
+import { PromiseCaching } from 'promise-caching'
+import { CACHE_TIME_SECONDS } from '../../shared/constants'
 
 export class HyperliquidExchange {
-  private exchange: Exchange | null
-  private hasCredentials: boolean
+  private _exchange: Exchange | null
   private user: string
+  private cache: PromiseCaching
 
   constructor() {
     const apiKey = process.env.HYPERLIQUID_API_KEY
     const secret = process.env.HYPERLIQUID_SECRET_KEY
+    const walletAddress = process.env.HYPERLIQUID_WALLET_ADDRESS
     this.user = process.env.HYPERLIQUID_USER!
 
-    this.hasCredentials = !!(apiKey && secret && this.user)
 
-    if (this.hasCredentials) {
-      // Use the actual Hyperliquid exchange from CCXT
-      this.exchange = new ccxt.hyperliquid({
-        apiKey,
-        secret,
-        options: {
-          defaultType: 'future'
-        }
+    if (!!(apiKey && secret && this.user)) {
+      throw new Error('Hyperliquid API credentials not configured')
+    }
+
+    // Use the actual Hyperliquid exchange from CCXT
+    this._exchange = new ccxt.hyperliquid({
+      apiKey,
+      secret,
+      walletAddress,
+      options: {
+        defaultType: 'future'
+      }
+    })
+
+    // Initialize cache with 5 minute TTL
+    this.cache = new PromiseCaching({ returnExpired: true });
+
+  }
+
+  get exchange(): Exchange {
+    if (!this._exchange) {
+      throw new Error('Exchange not initialized')
+    }
+    return this._exchange
+  }
+
+  async getMarket(symbol: string): Promise<Market | null> {
+    return this.cache.get(`market:${symbol}`, CACHE_TIME_SECONDS, async () => {
+      console.log(`Getting market for ${symbol} from exchange`)
+      const markets = await this.exchange!.fetchMarkets()
+      const market = markets.find(m => m?.symbol === symbol)
+      return market || null
+    })
+  }
+
+  async getTicker(symbol: string): Promise<Ticker> {
+    return this.cache.get(`ticker:${symbol}`, CACHE_TIME_SECONDS, async () => {
+      console.log(`Getting ticker for ${symbol} from exchange`)
+      return await this.exchange!.fetchTicker(symbol)
+    })
+  }
+
+  async placeOrder(symbol: string, side: 'buy' | 'sell', amount: number, leverage: number = 5): Promise<any> {
+    console.log(`Placing ${side} order for ${amount} ${symbol} with ${leverage}x leverage`)
+    
+    const order = await this.exchange!.createOrder(symbol, 'market', side, amount, undefined, {
+      leverage: leverage
+    })
+    
+    // Invalidate all caches after placing order
+    this.invalidateAll()
+    
+    console.log('Order placed:', order)
+    return order
+  }
+
+  async closePosition(symbol: string): Promise<any> {
+    console.log(`Closing position for ${symbol}`)
+    
+    // Get current position to determine size and side
+    const position = await this.getPosition(symbol)
+    if (!position || position.contracts === 0) {
+      console.log(`No position to close for ${symbol}`)
+      return null
+    }
+
+    // Close position by placing opposite order
+    const closeSide = position.side === 'long' ? 'sell' : 'buy'
+    const order = await this.exchange!.createOrder(symbol, 'market', closeSide, position.contracts || 0)
+    
+    // Invalidate all caches after closing position
+    this.invalidateAll()
+    
+    console.log('Position closed:', order)
+    return order
+  }
+
+  async getBalance(): Promise<Balances> {
+    return this.cache.get('balance', CACHE_TIME_SECONDS, async () => {
+      console.log('Getting balance from exchange')
+      const balance = await this.exchange!.fetchBalance({ user: this.user })
+      return balance
+    })
+  }
+
+  async getPositions(): Promise<Position[]> {
+    return this.cache.get<Position[]>('positions', CACHE_TIME_SECONDS, async () => {
+      console.log('Getting positions from exchange')
+      const positions = await this.exchange!.fetchPositions([], {
+        user: this.user
       })
-    } else {
-      console.warn('Hyperliquid API credentials not configured - using mock mode')
-      this.exchange = null
-    }
+      return positions
+    })
   }
 
-  async getPosition(symbol: string): Promise<ExchangePosition | null> {
-    try {
-      if (!this.exchange) {
-        return null
-      }
-
-      console.log(`Getting position for ${symbol}`)
-      const positions = await this.exchange.fetchPositions([symbol])
-      const position = positions.find(p => p.symbol === symbol)
-      
-      if (position) {
-        return {
-          symbol: position.symbol,
-          size: position.contracts || 0,
-          side: position.side as 'long' | 'short',
-          entryPrice: position.entryPrice || 0,
-          unrealizedPnl: position.unrealizedPnl || 0
-        }
-      }
-      
-      return null
-    } catch (error) {
-      console.error('Error getting position:', error)
-      return null
-    }
-  }
-
-  async placeOrder(symbol: string, side: 'buy' | 'sell', amount: number, leverage: number = 5): Promise<boolean> {
-    try {
-      if (!this.exchange) {
-        return false
-      }
-
-      console.log(`Placing ${side} order for ${amount} ${symbol} with ${leverage}x leverage`)
-      
-      const order = await this.exchange.createOrder(symbol, 'market', side, amount, undefined, {
-        leverage: leverage
-      })
-      
-      console.log('Order placed:', order)
-      return true
-    } catch (error) {
-      console.error('Error placing order:', error)
-      return false
-    }
-  }
-
-  async closePosition(symbol: string): Promise<boolean> {
-    try {
-      if (!this.exchange) {
-        return false
-      }
-
-      console.log(`Closing position for ${symbol}`)
-      
-      // Get current position to determine size and side
-      const position = await this.getPosition(symbol)
-      if (!position || position.size === 0) {
-        console.log(`No position to close for ${symbol}`)
-        return true
-      }
-
-      // Close position by placing opposite order
-      const closeSide = position.side === 'long' ? 'sell' : 'buy'
-      const order = await this.exchange.createOrder(symbol, 'market', closeSide, position.size)
-      
-      console.log('Position closed:', order)
-      return true
-    } catch (error) {
-      console.error('Error closing position:', error)
-      return false
-    }
-  }
-
-  async getAccountInfo(): Promise<{ balance: number; positions: any[] } | null> {
-    try {
-      if (!this.exchange) {
-        return null
-      }
-
-      const balance = await this.exchange.fetchBalance({ user: this.user })
-      const positions = await this.exchange.fetchPositions()
-
-      console.log('Balance:', balance)
-      console.log('Positions:', positions)
-      return {
-        balance: balance.USDC?.free || 0,
-        positions: positions
-      }
-    } catch (error) {
-      console.error('Error getting account info:', error)
-      return null
-    }
+  async getPosition(symbol: string): Promise<Position | null> {
+    const positions = await this.getPositions()
+    return positions.find(p => p.symbol === symbol) || null
   }
 
   async getUSDCBalance(): Promise<number> {
-    try {
-      if (!this.exchange) {
-        return 0
-      }
-
-      console.log('Getting USDC balance from Hyperliquid')
-      // Hyperliquid requires a user parameter for fetchBalance
-      const balance = await this.exchange.fetchBalance({ user: this.user })
-      
-      return balance.USDC?.free || 0
-    } catch (error) {
-      console.error('Error getting USDC balance:', error)
-      return 0
-    }
+    console.log('Getting USDC balance from Hyperliquid')
+    const balance = await this.exchange!.fetchBalance({ user: this.user })
+    
+    return balance.USDC?.free || 0
   }
 
-  async getAccountBalance(): Promise<{ usdcBalance: number } | null> {
-    try {
-      if (!this.exchange) {
-        return null
-      }
-      
-      const usdcBalance = await this.getUSDCBalance()
-      return { usdcBalance }
-    } catch (error) {
-      console.error('Error getting account balance:', error)
-      return null
-    }
+  async getMarkets(): Promise<Market[]> {
+    return this.cache.get('markets', CACHE_TIME_SECONDS, async () => {
+      console.log('Fetching markets from Hyperliquid')
+      return await this.exchange!.fetchMarkets()
+    })
   }
 
-  async getTradingPairs(): Promise<any[]> {
-    try {
-      if (!this.exchange) {
-        return []
-      }
-
-      console.log('Fetching trading pairs from Hyperliquid')
-      const markets = await this.exchange.fetchMarkets()
-      
-      return markets.map(market => ({
-        symbol: market?.symbol || '',
-        base: market?.base || '',
-        quote: market?.quote || '',
-        active: market?.active || false,
-        type: market?.type || '',
-        spot: market?.spot || false,
-        margin: market?.margin || false,
-        future: market?.future || false,
-        option: market?.option || false,
-        contract: market?.contract || false,
-        settle: market?.settle || '',
-        settleId: market?.settleId || '',
-        contractSize: market?.contractSize || 0,
-        linear: market?.linear || false,
-        inverse: market?.inverse || false,
-        taker: market?.taker || 0,
-        maker: market?.maker || 0,
-        limits: market?.limits || {},
-        info: market?.info || {}
-      }))
-    } catch (error) {
-      console.error('Error getting trading pairs:', error)
-      return []
-    }
+  // Cache invalidation method
+  private invalidateAll(): void {
+    this.cache = new PromiseCaching({ returnExpired: true });
+    console.log('Invalidated all caches');
   }
+
 }

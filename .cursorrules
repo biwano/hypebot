@@ -62,7 +62,10 @@ The UI enables to:
 - Services are in `/server/services/` directory
 - Types are in `/types/` directory
 
+### Quality
 
+- When possible use cctx types instead of custom types
+- Let errors propagate server side except in the express handlers
 
 
 
