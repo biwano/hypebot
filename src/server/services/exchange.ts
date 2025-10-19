@@ -102,7 +102,7 @@ export class HyperliquidExchange {
   async getPositions(): Promise<Position[]> {
     return this.cache.get<Position[]>('positions', CACHE_TIME_SECONDS, async () => {
       console.log('Getting positions from exchange')
-      const positions = await this.exchange!.fetchPositions([], {
+      const positions = await this.exchange!.fetchPositions(undefined, {
         user: this.user
       })
       return positions

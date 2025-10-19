@@ -163,7 +163,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import type { ApiResponse } from '../../shared/types'
+import type { ApiResponse } from '../../shared/types/index'
 
 interface TradingPair {
   symbol: string

@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express'
 import { HyperliquidExchange } from '../services/exchange.js'
-import type { ApiResponse } from '../../shared/types.js'
+import type { ApiResponse } from '../../shared/types/index.js'
 import type { Balances, Position } from 'ccxt'
 
 const router = express.Router()

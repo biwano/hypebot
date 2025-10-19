@@ -56,7 +56,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import type { Bot, ApiResponse } from '../../shared/types'
+import type { Bot, ApiResponse } from '../../shared/types/index'
 
 interface Props {
   modelValue: boolean
@@ -114,7 +114,7 @@ watch(dialog, (newVal) => {
     form.value = {
       name: props.bot.name,
       pair: props.bot.pair,
-      desired_direction: props.bot.desired_direction
+      desired_direction: props.bot.desired_direction || 0
     }
     error.value = ''
     // Reset form validation

@@ -20,7 +20,7 @@
       </v-col>
     </v-row>
 
-    <v-row v-if="loading">
+    <v-row v-if="botsQuery.isLoading.value">
       <v-col cols="12">
         <v-progress-circular
           indeterminate
@@ -29,7 +29,26 @@
       </v-col>
     </v-row>
 
-    <v-row v-else-if="bots.length === 0">
+    <v-row v-else-if="botsQuery.isError.value">
+      <v-col cols="12">
+        <v-card>
+          <v-card-text class="text-center py-8">
+            <v-icon size="64" color="error">mdi-alert-circle</v-icon>
+            <h3 class="text-h6 mt-4">Error loading bots</h3>
+            <p class="text-body-1">{{ botsQuery.error.value?.message }}</p>
+            <v-btn
+              color="primary"
+              @click="botsQuery.refetch()"
+              class="mt-4"
+            >
+              Retry
+            </v-btn>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row v-else-if="botsQuery.data.value?.length === 0">
       <v-col cols="12">
         <v-card>
           <v-card-text class="text-center py-8">
@@ -50,7 +69,7 @@
 
     <v-row v-else>
       <v-col
-        v-for="bot in bots"
+        v-for="bot in botsQuery.data.value"
         :key="bot.id"
         cols="12"
         md="6"
@@ -73,70 +92,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import type { Bot, ApiResponse } from '../../shared/types'
+import { ref } from 'vue'
+import type { Bot } from '../../shared/types/index'
 import BotCard from './BotCard.vue'
 import BotCreateDialog from './BotCreateDialog.vue'
 import USDCBalance from './USDCBalance.vue'
+import { useBots, useCreateBot, useUpdateBot, useDeleteBot } from '../composables/useBots'
 
 const showCreateDialog = ref(false)
-const loading = ref(true)
 
-const bots = ref<Bot[]>([])
+// Use TanStack Query hooks
+const botsQuery = useBots()
+const createBotMutation = useCreateBot()
+const updateBotMutation = useUpdateBot()
+const deleteBotMutation = useDeleteBot()
 
-// Fetch bots
-const fetchBots = async () => {
+const handleCreate = async (newBot: Omit<Bot, 'id' | 'created_at' | 'updated_at'>) => {
   try {
-    const response = await fetch('/api/bots')
-    const result: ApiResponse<Bot[]> = await response.json()
-    
-    if (result.error) {
-      console.error('Error fetching bots:', result.error)
-    } else {
-      bots.value = result.data || []
-    }
+    await createBotMutation.mutateAsync(newBot)
+    showCreateDialog.value = false
   } catch (error) {
-    console.error('Error fetching bots:', error)
-  } finally {
-    loading.value = false
+    console.error('Error creating bot:', error)
   }
 }
 
-
-const handleCreate = (newBot: Bot) => {
-  // Add the new bot to the list
-  bots.value.unshift(newBot)
-}
-
-const updateBot = (updatedBot: Bot) => {
-  // Find and update the bot in the list
-  const index = bots.value.findIndex(bot => bot.id === updatedBot.id)
-  if (index !== -1) {
-    bots.value[index] = updatedBot
+const updateBot = async (updatedBot: Bot) => {
+  try {
+    await updateBotMutation.mutateAsync(updatedBot)
+  } catch (error) {
+    console.error('Error updating bot:', error)
   }
 }
 
 const deleteBot = async (botId: string) => {
   if (confirm('Are you sure you want to delete this bot?')) {
     try {
-      const response = await fetch(`/api/bots/${botId}`, {
-        method: 'DELETE'
-      })
-
-      const result: ApiResponse<{ success: boolean }> = await response.json()
-
-      if (result.error) {
-        console.error('Error deleting bot:', result.error)
-      } else {
-        bots.value = bots.value.filter(bot => bot.id !== botId)
-      }
+      await deleteBotMutation.mutateAsync(botId)
     } catch (error) {
       console.error('Error deleting bot:', error)
     }
   }
 }
-
-onMounted(() => {
-  fetchBots()
-})
 </script>
+

@@ -1,5 +1,5 @@
 import { HyperliquidExchange } from './exchange'
-import type { Bot } from '../../shared/types'
+import type { Bot } from '../../shared/types/index.js'
 
 export class BotExecutor {
   private exchange: HyperliquidExchange | null

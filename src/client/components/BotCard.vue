@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { Bot } from '../../shared/types'
+import type { Bot } from '../../shared/types/index'
 import BotEditDialog from './BotEditDialog.vue'
 import BotDirection from './BotDirection.vue'
 
