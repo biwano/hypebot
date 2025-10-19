@@ -31,7 +31,7 @@
       <v-btn
         color="error"
         variant="text"
-        @click="$emit('delete', bot.id)"
+        @click="handleDelete()"
       >
         <v-icon left>mdi-delete</v-icon>
         Delete
@@ -55,6 +55,7 @@ import { ref } from 'vue'
 import type { Bot } from '../../shared/types/index'
 import BotEditDialog from './BotEditDialog.vue'
 import BotDirection from './BotDirection.vue'
+import { useDeleteBot } from '../composables/useBots'
 
 interface Props {
   bot: Bot
@@ -64,7 +65,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   delete: [id: string]
-  update: [bot: Bot]
+  update: [bot: Partial<Bot> & { id: string }]
 }>()
 
 const showEditDialog = ref(false)
@@ -74,10 +75,17 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString()
 }
 
-const handleUpdate = (updatedBot: Bot) => {
+const deleteBotMutation = useDeleteBot()
+
+const handleUpdate = (updatedBot: Partial<Bot> & { id: string }) => {
   // Update the bot with the new data
   Object.assign(props.bot, updatedBot)
   emit('update', updatedBot)
+}
+
+const handleDelete = async () => {
+  await deleteBotMutation.mutateAsync(props.bot.id)
+  emit('delete', props.bot.id)
 }
 
 </script>

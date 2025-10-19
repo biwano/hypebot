@@ -77,8 +77,8 @@
       >
         <BotCard
           :bot="bot"
-          @delete="deleteBot"
-          @update="updateBot"
+          @delete="botsQuery.refetch()"
+          @update="botsQuery.refetch()"
         />
       </v-col>
     </v-row>
@@ -86,52 +86,22 @@
     <!-- Create Bot Dialog -->
     <BotCreateDialog
       v-model="showCreateDialog"
-      @create="handleCreate"
+      @create="botsQuery.refetch()"
     />
   </v-container>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { Bot } from '../../shared/types/index'
 import BotCard from './BotCard.vue'
 import BotCreateDialog from './BotCreateDialog.vue'
 import USDCBalance from './USDCBalance.vue'
-import { useBots, useCreateBot, useUpdateBot, useDeleteBot } from '../composables/useBots'
+import { useBots } from '../composables/useBots'
 
 const showCreateDialog = ref(false)
 
 // Use TanStack Query hooks
 const botsQuery = useBots()
-const createBotMutation = useCreateBot()
-const updateBotMutation = useUpdateBot()
-const deleteBotMutation = useDeleteBot()
 
-const handleCreate = async (newBot: Omit<Bot, 'id' | 'created_at' | 'updated_at'>) => {
-  try {
-    await createBotMutation.mutateAsync(newBot)
-    showCreateDialog.value = false
-  } catch (error) {
-    console.error('Error creating bot:', error)
-  }
-}
-
-const updateBot = async (updatedBot: Bot) => {
-  try {
-    await updateBotMutation.mutateAsync(updatedBot)
-  } catch (error) {
-    console.error('Error updating bot:', error)
-  }
-}
-
-const deleteBot = async (botId: string) => {
-  if (confirm('Are you sure you want to delete this bot?')) {
-    try {
-      await deleteBotMutation.mutateAsync(botId)
-    } catch (error) {
-      console.error('Error deleting bot:', error)
-    }
-  }
-}
 </script>
 

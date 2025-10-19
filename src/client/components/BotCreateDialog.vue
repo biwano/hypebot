@@ -49,6 +49,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { Bot, ApiResponse } from '../../shared/types/index'
+import { useCreateBot } from '../composables/useBots';
 
 interface Props {
   modelValue: boolean
@@ -103,36 +104,15 @@ watch(dialog, (newVal) => {
   }
 })
 
+const createBotMutation = useCreateBot()
+
+
 const createBot = async () => {
-  // Validate form using Vuetify rules
-  const { valid } = await formRef.value.validate()
-  if (!valid) return
-
-  loading.value = true
-  error.value = ''
-
-  try {
-    const response = await fetch('/api/bots', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(form.value)
-    })
-
-    const result: ApiResponse<Bot> = await response.json()
-
-    if (result.error) {
-      error.value = result.error
-    } else {
-      emit('create', result.data!)
-      dialog.value = false
-    }
-  } catch (err: any) {
-    error.value = 'Failed to create bot'
-    console.error('Error creating bot:', err)
-  } finally {
-    loading.value = false
-  }
+  const newBot = await createBotMutation.mutateAsync({
+    ...form.value,
+    desired_direction: 0
+})
+  emit('create', newBot)
+  dialog.value = false
 }
 </script>

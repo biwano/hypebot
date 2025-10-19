@@ -57,7 +57,7 @@ export const useUpdateBot = () => {
   return useMutation({
     mutationFn: async ({ id, ...botData }: Partial<Bot> & { id: string }): Promise<Bot> => {
       const response = await fetch(`/api/bots/${id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },

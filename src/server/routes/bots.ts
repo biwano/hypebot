@@ -76,8 +76,8 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 })
 
-// PUT /api/bots/:id - Update a bot
-router.put('/:id', async (req: Request, res: Response) => {
+// POTS /api/bots/:id - Update a bot
+router.post('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params
     const updates = req.body

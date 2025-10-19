@@ -57,6 +57,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import type { Bot, ApiResponse } from '../../shared/types/index'
+import { useUpdateBot } from '../composables/useBots';
 
 interface Props {
   modelValue: boolean
@@ -67,7 +68,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  'update': [bot: Bot]
+  'update': [bot: Partial<Bot> & { id: string }]
 }>()
 
 const dialog = computed({
@@ -124,36 +125,19 @@ watch(dialog, (newVal) => {
   }
 })
 
+const updateBotMutation = useUpdateBot()
+
 const updateBot = async () => {
-  // Validate form using Vuetify rules
-  const { valid } = await formRef.value.validate()
-  if (!valid) return
-
-  loading.value = true
-  error.value = ''
-
   try {
-    const response = await fetch(`/api/bots/${props.bot.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(form.value)
-    })
-
-    const result: ApiResponse<Bot> = await response.json()
-
-    if (result.error) {
-      error.value = result.error
-    } else {
-      emit('update', result.data!)
-      dialog.value = false
-    }
-  } catch (err: any) {
-    error.value = 'Failed to update bot'
-    console.error('Error updating bot:', err)
-  } finally {
-    loading.value = false
+      const updatedBot = await updateBotMutation.mutateAsync({
+      ...form.value,
+      id: props.bot.id
+  })
+  emit('update', updatedBot)
+  dialog.value = false
+  } catch (error) {
+    console.error('Error updating bot:', error)
   }
+  
 }
 </script>

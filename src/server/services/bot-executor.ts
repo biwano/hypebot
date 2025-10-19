@@ -51,5 +51,8 @@ const checkAllBots =async () => {
   })
 }
 
-checkAllBots();
-setInterval(checkAllBots, 60000);
+if (process.env.NODE_ENV !== 'development') { 
+  console.log('🤖 Activating bots')
+  checkAllBots();
+  setInterval(checkAllBots, 60000);
+}
