@@ -5,16 +5,8 @@
     <v-card-subtitle>{{ bot.pair }}</v-card-subtitle>
     
     <v-card-text>
-      <div class="d-flex align-center mb-2">
-        <v-icon 
-          :color="directionColor" 
-          class="mr-2"
-        >
-          {{ directionIcon }}
-        </v-icon>
-        <span class="text-body-1">
-          {{ directionText }}
-        </span>
+      <div class="mb-2">
+        <BotDirection :desired-direction="bot.desired_direction" />
       </div>
       
       <div class="text-caption text-grey">
@@ -28,6 +20,15 @@
     
     <v-card-actions>
       <v-btn
+        color="primary"
+        variant="text"
+        @click="showEditDialog = true"
+      >
+        <v-icon left>mdi-pencil</v-icon>
+        Edit
+      </v-btn>
+      
+      <v-btn
         color="error"
         variant="text"
         @click="$emit('delete', bot.id)"
@@ -38,23 +39,22 @@
       
       <v-spacer></v-spacer>
       
-      <v-btn
-        v-if="bot.desired_direction !== 0"
-        color="warning"
-        variant="text"
-        @click="exitBot"
-        :loading="exiting"
-      >
-        <v-icon left>mdi-exit-to-app</v-icon>
-        Exit
-      </v-btn>
     </v-card-actions>
+
+    <!-- Edit Dialog -->
+    <BotEditDialog
+      v-model="showEditDialog"
+      :bot="bot"
+      @update="handleUpdate"
+    />
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { Bot } from '../../shared/types'
+import BotEditDialog from './BotEditDialog.vue'
+import BotDirection from './BotDirection.vue'
 
 interface Props {
   bot: Bot
@@ -64,51 +64,20 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   delete: [id: string]
+  update: [bot: Bot]
 }>()
 
-const exiting = ref(false)
+const showEditDialog = ref(false)
 
-const directionColor = computed(() => {
-  if (props.bot.desired_direction > 0) return 'success'
-  if (props.bot.desired_direction < 0) return 'error'
-  return 'grey'
-})
-
-const directionIcon = computed(() => {
-  if (props.bot.desired_direction > 0) return 'mdi-trending-up'
-  if (props.bot.desired_direction < 0) return 'mdi-trending-down'
-  return 'mdi-pause'
-})
-
-const directionText = computed(() => {
-  if (props.bot.desired_direction > 0) return `Long ${Math.abs(props.bot.desired_direction)}x`
-  if (props.bot.desired_direction < 0) return `Short ${Math.abs(props.bot.desired_direction)}x`
-  return 'No Position'
-})
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString()
 }
 
-const exitBot = async () => {
-  exiting.value = true
-  try {
-    const response = await fetch(`/api/bots/${props.bot.id}/exit`, {
-      method: 'POST'
-    })
-
-    const result = await response.json()
-
-    if (result.error) {
-      console.error('Error exiting bot:', result.error)
-    } else {
-      // Update the bot's desired_direction to 0
-      props.bot.desired_direction = 0
-    }
-  } catch (error) {
-    console.error('Error exiting bot:', error)
-  } finally {
-    exiting.value = false
-  }
+const handleUpdate = (updatedBot: Bot) => {
+  // Update the bot with the new data
+  Object.assign(props.bot, updatedBot)
+  emit('update', updatedBot)
 }
+
 </script>

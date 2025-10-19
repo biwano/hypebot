@@ -24,5 +24,5 @@
 </template>
 
 <script setup lang="ts">
-// No additional logic needed - Vue Router handles everything
+import { VMain } from 'vuetify/lib/components/index.js'
 </script>

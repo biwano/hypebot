@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express'
 import { getSupabaseClient } from '../services/supabase'
 import { BotExecutor } from '../services/bot-executor'
-import type { Bot, ApiResponse } from '../../shared/types'
 
 const router = express.Router()
 const botExecutor = new BotExecutor()

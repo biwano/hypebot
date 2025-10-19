@@ -5,24 +5,8 @@
         <div class="d-flex justify-space-between align-center mb-6">
           <div>
             <h1 class="text-h4">Trading Bots</h1>
-            <div class="d-flex align-center mt-2">
-              <v-icon color="primary" class="mr-2">mdi-wallet</v-icon>
-              <span class="text-h6">
-                USDC Balance: 
-                <span v-if="balanceLoading" class="text-grey">Loading...</span>
-                <span v-else class="text-primary font-weight-bold">
-                  ${{ usdcBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-                </span>
-              </span>
-              <v-btn
-                icon
-                size="small"
-                @click="fetchBalance"
-                :loading="balanceLoading"
-                class="ml-2"
-              >
-                <v-icon>mdi-refresh</v-icon>
-              </v-btn>
+            <div class="mt-2">
+              <USDCBalance />
             </div>
           </div>
           <v-btn
@@ -75,80 +59,30 @@
         <BotCard
           :bot="bot"
           @delete="deleteBot"
+          @update="updateBot"
         />
       </v-col>
     </v-row>
 
     <!-- Create Bot Dialog -->
-    <v-dialog v-model="showCreateDialog" max-width="500">
-      <v-card>
-        <v-card-title>Create New Bot</v-card-title>
-        <v-card-text>
-          <v-form @submit.prevent="createBot">
-            <v-text-field
-              v-model="newBot.name"
-              label="Bot Name"
-              required
-              :error-messages="nameErrors"
-            ></v-text-field>
-            
-            <v-text-field
-              v-model="newBot.pair"
-              label="Trading Pair (e.g., BTC-USD)"
-              required
-              :error-messages="pairErrors"
-            ></v-text-field>
-            
-            <v-alert
-              v-if="createError"
-              type="error"
-              class="mb-4"
-            >
-              {{ createError }}
-            </v-alert>
-          </v-form>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn
-            @click="showCreateDialog = false"
-          >
-            Cancel
-          </v-btn>
-          <v-btn
-            color="primary"
-            @click="createBot"
-            :loading="creating"
-          >
-            Create
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <BotCreateDialog
+      v-model="showCreateDialog"
+      @create="handleCreate"
+    />
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import type { Bot, ApiResponse } from '../../shared/types'
 import BotCard from './BotCard.vue'
+import BotCreateDialog from './BotCreateDialog.vue'
+import USDCBalance from './USDCBalance.vue'
 
 const showCreateDialog = ref(false)
-const creating = ref(false)
-const createError = ref('')
 const loading = ref(true)
-const balanceLoading = ref(false)
-
-const newBot = ref({
-  name: '',
-  pair: ''
-})
-
-const nameErrors = ref<string[]>([])
-const pairErrors = ref<string[]>([])
 
 const bots = ref<Bot[]>([])
-const usdcBalance = ref(0)
 
 // Fetch bots
 const fetchBots = async () => {
@@ -168,65 +102,17 @@ const fetchBots = async () => {
   }
 }
 
-// Fetch account balance
-const fetchBalance = async () => {
-  balanceLoading.value = true
-  try {
-    const response = await fetch('/api/account')
-    const result: ApiResponse<{ usdcBalance: number }> = await response.json()
-    
-    if (result.error) {
-      console.error('Error fetching balance:', result.error)
-    } else {
-      usdcBalance.value = result.data?.usdcBalance || 0
-    }
-  } catch (error) {
-    console.error('Error fetching balance:', error)
-  } finally {
-    balanceLoading.value = false
-  }
+
+const handleCreate = (newBot: Bot) => {
+  // Add the new bot to the list
+  bots.value.unshift(newBot)
 }
 
-const createBot = async () => {
-  creating.value = true
-  createError.value = ''
-  nameErrors.value = []
-  pairErrors.value = []
-
-  if (!newBot.value.name.trim()) {
-    nameErrors.value = ['Name is required']
-    creating.value = false
-    return
-  }
-
-  if (!newBot.value.pair.trim()) {
-    pairErrors.value = ['Trading pair is required']
-    creating.value = false
-    return
-  }
-
-  try {
-    const response = await fetch('/api/bots', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(newBot.value)
-    })
-
-    const result: ApiResponse<Bot> = await response.json()
-
-    if (result.error) {
-      createError.value = result.error
-    } else {
-      bots.value.unshift(result.data!)
-      showCreateDialog.value = false
-      newBot.value = { name: '', pair: '' }
-    }
-  } catch (error) {
-    createError.value = 'Failed to create bot'
-  } finally {
-    creating.value = false
+const updateBot = (updatedBot: Bot) => {
+  // Find and update the bot in the list
+  const index = bots.value.findIndex(bot => bot.id === updatedBot.id)
+  if (index !== -1) {
+    bots.value[index] = updatedBot
   }
 }
 
@@ -250,21 +136,7 @@ const deleteBot = async (botId: string) => {
   }
 }
 
-// Auto-refresh balance every 30 seconds
-let balanceInterval: NodeJS.Timeout
-
 onMounted(() => {
   fetchBots()
-  fetchBalance()
-  
-  balanceInterval = setInterval(() => {
-    fetchBalance()
-  }, 30000) // 30 seconds
-})
-
-onUnmounted(() => {
-  if (balanceInterval) {
-    clearInterval(balanceInterval)
-  }
 })
 </script>
