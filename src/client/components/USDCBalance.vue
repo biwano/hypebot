@@ -19,21 +19,29 @@
       :is-error="accountQuery.isError.value"
       :error-message="accountQuery.error.value?.message"
     />
+
+    <!-- Open Orders -->
+    <OpenOrders
+      :orders="accountQuery.data.value?.orders || null"
+      :is-loading="accountQuery.isLoading.value"
+      :is-error="accountQuery.isError.value"
+      :error-message="accountQuery.error.value?.message"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
-import type { ApiResponse } from '../../shared/types/index'
-import type { Balances, Position } from 'ccxt'
+import type { ApiResponse, AccountData } from '../../shared/types/index'
 import CurrentPositions from './CurrentPositions.vue'
+import OpenOrders from './OpenOrders.vue'
 
 // Fetch account data using TanStack Query
 const accountQuery = useQuery({
   queryKey: ['account'],
-  queryFn: async (): Promise<{ balance: Balances; positions: Position[] }> => {
+  queryFn: async (): Promise<AccountData> => {
     const response = await fetch('/api/account')
-    const result: ApiResponse<{ balance: Balances; positions: Position[] }> = await response.json()
+    const result: ApiResponse<AccountData> = await response.json()
     
     if (result.error) {
       throw new Error(result.error)

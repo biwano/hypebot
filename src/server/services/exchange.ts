@@ -1,4 +1,4 @@
-import ccxt, { Exchange, Position, Market, Balances, Ticker, Num} from 'ccxt'
+import ccxt, { Exchange, Position, Market, Balances, Ticker, Num, Order} from 'ccxt'
 import { PromiseCaching } from 'promise-caching'
 import { CACHE_TIME_SECONDS } from '../../shared/constants'
 
@@ -39,7 +39,7 @@ export class HyperliquidExchange {
 
   async getMarket(symbol: string): Promise<Market> {
     return this.cache.get(`market:${symbol}`, CACHE_TIME_SECONDS, async () => {
-      console.log(`Getting market for ${symbol} from exchange`)
+      console.log(`🔍 Getting market for ${symbol} from exchange`)
       const markets = await this.exchange!.fetchMarkets()
       const market = markets.find(m => m?.symbol === symbol)
       if (!market) {
@@ -51,7 +51,7 @@ export class HyperliquidExchange {
 
   async getTicker(symbol: string): Promise<Ticker> {
     return this.cache.get(`ticker:${symbol}`, CACHE_TIME_SECONDS, async () => {
-      console.log(`Getting ticker for ${symbol} from exchange`)
+      console.log(`🔍 Getting ticker for ${symbol} from exchange`)
       return await this.exchange!.fetchTicker(symbol)
     })
   }
@@ -63,6 +63,14 @@ export class HyperliquidExchange {
       throw new Error(`Unable to get price for ${symbol}`)
     }
     return price
+  }
+
+  async getOpenOrders(symbol?: string): Promise<Order[]> {
+    return this.cache.get<Order[]>(`openOrders:${symbol || 'all'}`, CACHE_TIME_SECONDS, async () => {
+      console.log(`🔍 Getting open orders for ${symbol || 'all symbols'}`)
+      const orders = await this.exchange!.fetchOpenOrders(symbol, undefined, undefined, { user: this.user })
+      return orders
+    })
   }
 
   private async calculateLimitPrice(symbol: string, side: 'buy' | 'sell', ticksOffset: number = 5): Promise<number> {
@@ -88,11 +96,27 @@ export class HyperliquidExchange {
     return limitPrice
   }
 
+  private async cancelAllOrders(symbol: string): Promise<void> {
+    const existingOrders = await this.exchange!.fetchOpenOrders(symbol, undefined, undefined, { user: this.user })
+    if (existingOrders.length > 0) {
+      console.log(`🔍 Found ${existingOrders.length} existing orders for ${symbol}, cancelling all...`)
+      
+      for (const order of existingOrders) {
+        await this.exchange!.cancelOrder(order.id, symbol)
+        console.log(`🗑️ Cancelled order ${order.id}`)
+      }
+      
+      // Invalidate cache after cancelling orders
+      this.invalidateAll()
+    }
+  }
+
   async placeOrder(symbol: string, side: 'buy' | 'sell', amount: number, leverage: number = 5): Promise<any> {
-    console.log(`Placing ${side} order for ${amount} ${symbol} with ${leverage}x leverage`)
+    console.log(`📝 Placing ${side} order for ${amount} ${symbol} with ${leverage}x leverage`)
     
     // Calculate limit price (5 ticks under current price)
-    const limitPrice = await this.calculateLimitPrice(symbol, side, 5000)
+    // Delete all existing orders for this symbol before placing new one
+    const [limitPrice, _ ] = await Promise.all([this.calculateLimitPrice(symbol, side, 5), this.cancelAllOrders(symbol)])
     
     const order = await this.exchange!.createOrder(symbol, 'limit', side, amount, limitPrice, {
       leverage: leverage
@@ -101,13 +125,13 @@ export class HyperliquidExchange {
     // Invalidate all caches after placing order
     this.invalidateAll()
     
-    console.log('Order placed:', order)
+    console.log(`✅ Order placed: ${order.id}`)
     return order
   }
 
   async getBalance(): Promise<Balances> {
     return this.cache.get('balance', CACHE_TIME_SECONDS, async () => {
-      console.log('Getting balance from exchange')
+      console.log('🔍 Getting balance from exchange')
       const balance = await this.exchange!.fetchBalance({ user: this.user })
       return balance
     })
@@ -115,7 +139,7 @@ export class HyperliquidExchange {
 
   async getPositions(): Promise<Position[]> {
     return this.cache.get<Position[]>('positions', CACHE_TIME_SECONDS, async () => {
-      console.log('Getting positions from exchange')
+      console.log('🔍 Getting positions from exchange')
       const positions = await this.exchange!.fetchPositions(undefined, {
         user: this.user
       })
@@ -123,9 +147,13 @@ export class HyperliquidExchange {
     })
   }
 
-  async getPosition(symbol: string): Promise<Position | null> {
+  async getPosition(symbol: string): Promise<Position> {
     const positions = await this.getPositions()
-    return positions.find(p => p.symbol === symbol) || null
+    const position = positions.find(p => p.symbol === symbol)
+    if (!position) {
+      throw new Error(`Position not found for ${symbol}`)
+    }
+    return position
   }
 
   async getAccountCollateral(): Promise<number> {
@@ -136,7 +164,7 @@ export class HyperliquidExchange {
 
   async getMarkets(): Promise<Market[]> {
     return this.cache.get('markets', CACHE_TIME_SECONDS, async () => {
-      console.log('Fetching markets from Hyperliquid')
+      console.log('🔍 Fetching markets from Hyperliquid')
       return await this.exchange!.fetchMarkets()
     })
   }
