@@ -1,5 +1,8 @@
 import { HyperliquidExchange } from './exchange'
 import type { Bot } from '../../shared/types/index.js'
+import { BASE_LEVERAGE } from '../../shared/constants'
+
+
 
 export class BotExecutor {
   private exchange: HyperliquidExchange | null
@@ -34,24 +37,45 @@ export class BotExecutor {
         return
       }
       
-      if (bot.desired_direction === 0) {
-        // Exit position
-        await this.exchange.closePosition(bot.pair)
-        console.log(`Closed position for bot ${botId}`)
-      } else {
-        // Place order based on desired direction
-        const side = bot.desired_direction > 0 ? 'buy' : 'sell'
-        const amount = Math.abs(bot.desired_direction) * 1000 // Mock amount calculation
-        const leverage = 5
+       
+        // current Notional
+        const [ currentPosition, currentCollateral] = await Promise.all([this.exchange.getPosition(bot.pair), this.exchange.getAccountCollateral()])
+        const currentMultiplier = currentPosition?.side === 'long' ? 1 : -1
+        let currentNotional = 0
+        if (currentPosition && currentPosition.notional) {
+          currentNotional = currentPosition.notional * currentMultiplier
+        }
+
+        // Wanted Notional
+        const wantedNotional= bot.desired_direction * BASE_LEVERAGE * currentCollateral
+
+        // Amount and side
+        const absoluteAmountUSD = wantedNotional - currentNotional
+        const side = absoluteAmountUSD > 0 ? 'buy' : 'sell'
+        const amount = Math.abs(absoluteAmountUSD) 
+
+        console.log(`Current: ${currentNotional} notional, Desired: ${wantedNotional} notional, Order: ${amount} ${side}`)
         
-        const success = await this.exchange.placeOrder(bot.pair, side, amount, leverage)
+        if (Math.abs(amount) < currentCollateral * BASE_LEVERAGE / 10) {
+          console.log(`Bot ${botId} already at desired position, no order needed`)
+          return
+        }
+
+        const price = await this.exchange.getPrice(bot.pair, side)
+
+        const amountToken = amount / price
         
+        const success = await this.exchange.placeOrder(bot.pair, side, amountToken, 5)
+          
         if (success) {
-          console.log(`Successfully placed ${side} order for bot ${botId}`)
+          console.log(`Successfully placed ${side} order for ${amount} contracts on bot ${botId}`)
         } else {
           console.error(`Failed to place order for bot ${botId}`)
         }
-      }
+        return
+      
+        
+       
     } catch (error) {
       console.error(`Error executing bot ${botId}:`, error)
     } finally {
