@@ -7,7 +7,7 @@
         <span v-if="accountQuery.isLoading.value" class="text-grey">Loading...</span>
         <span v-else-if="accountQuery.isError.value" class="text-error">Error</span>
         <span v-else class="text-primary font-weight-bold">
-          ${{ (accountQuery.data.value?.balance?.USDC?.free || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+          ${{ (accountQuery.data.value?.balance?.USDC?.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
         </span>
       </span>
     </div>

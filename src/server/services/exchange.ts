@@ -116,7 +116,7 @@ export class HyperliquidExchange {
     
     // Calculate limit price (5 ticks under current price)
     // Delete all existing orders for this symbol before placing new one
-    const [limitPrice, _ ] = await Promise.all([this.calculateLimitPrice(symbol, side, 5), this.cancelAllOrders(symbol)])
+    const [limitPrice, _ ] = await Promise.all([this.calculateLimitPrice(symbol, side, 1), this.cancelAllOrders(symbol)])
     
     const order = await this.exchange!.createOrder(symbol, 'limit', side, amount, limitPrice, {
       leverage: leverage

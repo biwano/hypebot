@@ -1,9 +1,8 @@
 import express, { Request, Response } from 'express'
 import { getSupabaseClient } from '../services/supabase'
-import { BotExecutor } from '../services/bot-executor'
+import { botExecutor } from '../services/bot-executor'
 
 const router = express.Router()
-const botExecutor = new BotExecutor()
 
 // GET /api/bots - Get all bots
 router.get('/', async (req: Request, res: Response) => {
@@ -97,7 +96,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     // Execute bot if desired_direction changed
     if (updates.desired_direction !== undefined) {
-      await botExecutor.executeBot(bot)
+      await botExecutor.executeBot(bot.id)
     }
 
     res.json({ data: bot, error: null })

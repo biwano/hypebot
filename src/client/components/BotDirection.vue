@@ -35,7 +35,7 @@ const directionIcon = computed(() => {
 
 
 const directionText = computed(() => {
-  const absoluteDirection = (Math.abs(props.desiredDirection) / 5).toFixed(2)
+  const absoluteDirection = (Math.abs(props.desiredDirection) * 5).toFixed(2)
 
   if (props.desiredDirection > 0) return `Long ${absoluteDirection}x`
   if (props.desiredDirection < 0) return `Short ${absoluteDirection}x`
