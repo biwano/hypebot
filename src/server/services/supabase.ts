@@ -1,12 +1,22 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-export function getSupabaseClient(): SupabaseClient {
+const getClient = () => {
   const supabaseUrl = process.env.SUPABASE_URL
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !supabaseServiceRoleKey) {
     throw new Error('Missing Supabase URL or Service Role Key environment variables.')
   }
+  console.log('Supabase URL:', supabaseUrl)
 
   return createClient(supabaseUrl, supabaseServiceRoleKey)
+}
+
+let client: SupabaseClient | null = null
+
+export function getSupabaseClient(): SupabaseClient {
+  if (!client) {
+    client = getClient()
+  }
+  return client
 }
