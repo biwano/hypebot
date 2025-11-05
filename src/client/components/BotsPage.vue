@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <v-sheet class="pa-4">
     <v-row>
       <v-col cols="12">
         <div class="d-flex justify-space-between align-center mb-6">
@@ -72,8 +72,6 @@
         v-for="bot in botsQuery.data.value"
         :key="bot.id"
         cols="12"
-        md="6"
-        lg="4"
       >
         <BotCard
           :bot="bot"
@@ -88,7 +86,7 @@
       v-model="showCreateDialog"
       @create="botsQuery.refetch()"
     />
-  </v-container>
+  </v-sheet>
 </template>
 
 <script setup lang="ts">

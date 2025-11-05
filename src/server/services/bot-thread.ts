@@ -2,6 +2,7 @@ import { HyperliquidExchange } from './exchange'
 import type { Bot } from '../../shared/types/index.js'
 import { BASE_LEVERAGE } from '../../shared/constants'
 import { getSupabaseClient } from './supabase.js'
+import log from './log'
 import { botExecutor } from './bot-executor'
 
 export class BotThread {
@@ -19,7 +20,7 @@ export class BotThread {
         positionAdjusted = await this.handlePositionAdjustment()
     } finally {
         if (!positionAdjusted) {
-            console.log(`Bot ${this.botId} is not at desired position, retrying in 60 seconds`)
+            await log.info(this.botId, `Not at desired position, retrying in 60 seconds`)
             setTimeout(() => {
                botExecutor.executeBot(this.botId)
             }, 60000)
@@ -42,7 +43,10 @@ export class BotThread {
         }
         const side = currentPosition.side == 'long' ? 'sell' : 'buy'
         const amountToken = currentPosition.contractSize  * currentPosition.contracts
-        await this.exchange.placeOrder(bot.pair, side, amountToken, 5)
+
+        await log.info(this.botId, `📝 Placing ${side} order for ${amountToken}. Desired direction: ${bot.desired_direction}`)
+        const order = await this.exchange.placeOrder(bot.pair, side, amountToken, 5)
+        log.debug(this.botId, `✅ Order placed: ${order.id}`)
     
     } else {
         const [currentPosition, currentCollateral] = await Promise.all([
@@ -64,11 +68,11 @@ export class BotThread {
         const side = absoluteAmountUSD > 0 ? 'buy' : 'sell'
         const amount = Math.abs(absoluteAmountUSD)
 
-        console.log(`📊 Current notional: ${currentNotional} notional. Desired notional: ${wantedNotional}`)
+        await log.debug(this.botId, `📊 Current notional: ${currentNotional} notional. Desired notional: ${wantedNotional}`)
         
         // Check if order is significant enough
         if (Math.abs(amount) < currentCollateral * BASE_LEVERAGE / 10) {
-        console.log(`✅ Bot ${bot.id} already at desired position, no order needed`)
+        await log.debug(this.botId, `✅ Already at desired position, no order needed`)
         return true
         }
 
@@ -77,7 +81,9 @@ export class BotThread {
         const amountToken = amount / price
         
         // Place the order
-        await this.exchange.placeOrder(bot.pair, side, amountToken, 5)
+        await log.info(this.botId, `📝 Placing ${side} order for ${amountToken}. Desired direction: ${bot.desired_direction}`)
+        const order = await this.exchange.placeOrder(bot.pair, side, amountToken, 5)
+        log.info(this.botId, `✅ Order placed: ${order.id}`)
     }
     return false
   }

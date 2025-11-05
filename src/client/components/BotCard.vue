@@ -41,6 +41,12 @@
       
     </v-card-actions>
 
+    <v-divider></v-divider>
+
+    <v-card-text>
+      <BotLogs :bot-id="bot.id" />
+    </v-card-text>
+
     <!-- Edit Dialog -->
     <BotEditDialog
       v-model="showEditDialog"
@@ -56,6 +62,7 @@ import type { Bot } from '../../shared/types/index'
 import BotEditDialog from './BotEditDialog.vue'
 import BotDirection from './BotDirection.vue'
 import { useDeleteBot } from '../composables/useBots'
+import BotLogs from './BotLogs.vue'
 
 interface Props {
   bot: Bot

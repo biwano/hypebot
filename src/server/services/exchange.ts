@@ -1,6 +1,7 @@
 import ccxt, { Exchange, Position, Market, Balances, Ticker, Num, Order} from 'ccxt'
 import { PromiseCaching } from 'promise-caching'
 import { CACHE_TIME_SECONDS } from '../../shared/constants'
+import log from './log'
 
 export class HyperliquidExchange {
   private _exchange: Exchange | null
@@ -39,7 +40,7 @@ export class HyperliquidExchange {
 
   async getMarket(symbol: string): Promise<Market> {
     return this.cache.get(`market:${symbol}`, CACHE_TIME_SECONDS, async () => {
-      console.log(`🔍 Getting market for ${symbol} from exchange`)
+      console.debug(`🔍 Getting market for ${symbol} from exchange`)
       const markets = await this.exchange!.fetchMarkets()
       const market = markets.find(m => m?.symbol === symbol)
       if (!market) {
@@ -51,7 +52,7 @@ export class HyperliquidExchange {
 
   async getTicker(symbol: string): Promise<Ticker> {
     return this.cache.get(`ticker:${symbol}`, CACHE_TIME_SECONDS, async () => {
-      console.log(`🔍 Getting ticker for ${symbol} from exchange`)
+      console.debug(`🔍 Getting ticker for ${symbol} from exchange`)
       return await this.exchange!.fetchTicker(symbol)
     })
   }
@@ -99,11 +100,11 @@ export class HyperliquidExchange {
   private async cancelAllOrders(symbol: string): Promise<void> {
     const existingOrders = await this.exchange!.fetchOpenOrders(symbol, undefined, undefined, { user: this.user })
     if (existingOrders.length > 0) {
-      console.log(`🔍 Found ${existingOrders.length} existing orders for ${symbol}, cancelling all...`)
+      console.debug(`🔍 Found ${existingOrders.length} existing orders for ${symbol}, cancelling all...`)
       
       for (const order of existingOrders) {
         await this.exchange!.cancelOrder(order.id, symbol)
-        console.log(`🗑️ Cancelled order ${order.id}`)
+        console.info(`🗑️ Cancelled order ${order.id}`)
       }
       
       // Invalidate cache after cancelling orders
@@ -112,8 +113,6 @@ export class HyperliquidExchange {
   }
 
   async placeOrder(symbol: string, side: 'buy' | 'sell', amount: number, leverage: number = 5): Promise<any> {
-    console.log(`📝 Placing ${side} order for ${amount} ${symbol} with ${leverage}x leverage`)
-    
     // Calculate limit price (5 ticks under current price)
     // Delete all existing orders for this symbol before placing new one
     const [limitPrice, _ ] = await Promise.all([this.calculateLimitPrice(symbol, side, 1), this.cancelAllOrders(symbol)])
@@ -125,13 +124,12 @@ export class HyperliquidExchange {
     // Invalidate all caches after placing order
     this.invalidateAll()
     
-    console.log(`✅ Order placed: ${order.id}`)
     return order
   }
 
   async getBalance(): Promise<Balances> {
     return this.cache.get('balance', CACHE_TIME_SECONDS, async () => {
-      console.log('🔍 Getting balance from exchange')
+      console.debug('🔍 Getting balance from exchange')
       const balance = await this.exchange!.fetchBalance({ user: this.user })
       return balance
     })
@@ -139,7 +137,7 @@ export class HyperliquidExchange {
 
   async getPositions(): Promise<Position[]> {
     return this.cache.get<Position[]>('positions', CACHE_TIME_SECONDS, async () => {
-      console.log('🔍 Getting positions from exchange')
+      console.debug('🔍 Getting positions from exchange')
       const positions = await this.exchange!.fetchPositions(undefined, {
         user: this.user
       })
@@ -164,15 +162,15 @@ export class HyperliquidExchange {
 
   async getMarkets(): Promise<Market[]> {
     return this.cache.get('markets', CACHE_TIME_SECONDS, async () => {
-      console.log('🔍 Fetching markets from Hyperliquid')
+      console.debug('🔍 Fetching markets from Hyperliquid')
       return await this.exchange!.fetchMarkets()
     })
   }
 
   // Cache invalidation method
-  private invalidateAll(): void {
+  private async invalidateAll(): Promise<void> {
     this.cache = new PromiseCaching({ returnExpired: true });
-    console.log('Invalidated all caches');
+    console.debug('Invalidated all caches')
   }
 
 }
