@@ -20,7 +20,5 @@ CREATE TRIGGER update_logs_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
-drop policy "Allow all operations on bots" on "public"."bots";
-
 alter table "public"."bots" alter column "desired_direction" set default '0'::numeric;
 
