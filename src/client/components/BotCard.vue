@@ -9,6 +9,10 @@
         <BotDirection :desired-direction="bot.desired_direction" />
       </div>
       
+      <div class="mb-2">
+        <CurrentDirection :pair="bot.pair" />
+      </div>
+      
       <div class="text-caption text-grey">
         Created: {{ formatDate(bot.created_at) }}
       </div>
@@ -61,6 +65,7 @@ import { ref } from 'vue'
 import type { Bot } from '../../shared/types/index'
 import BotEditDialog from './BotEditDialog.vue'
 import BotDirection from './BotDirection.vue'
+import CurrentDirection from './CurrentDirection.vue'
 import { useDeleteBot } from '../composables/useBots'
 import BotLogs from './BotLogs.vue'
 
