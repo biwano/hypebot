@@ -2,6 +2,7 @@ import ccxt, { Exchange, Position, Market, Balances, Ticker, Num, Order} from 'c
 import { PromiseCaching } from 'promise-caching'
 import { CACHE_TIME_SECONDS } from '../../shared/constants'
 import log from './log'
+import { privateKeyToAccount } from 'viem/accounts'
 
 export class HyperliquidExchange {
   private _exchange: Exchange | null
@@ -10,12 +11,20 @@ export class HyperliquidExchange {
 
   constructor() {
     const privateKey = process.env.HYPERLIQUID_API_PRIVATE_KEY
-    const walletAddress = process.env.HYPERLIQUID_API_USER
     this.user = process.env.HYPERLIQUID_USER!
 
-    if (!(privateKey && walletAddress && this.user)) {
+    if (!(privateKey && this.user)) {
       throw new Error('Hyperliquid API credentials not configured')
     }
+
+    // Ensure private key has 0x prefix for viem
+    const formattedPrivateKey = privateKey.startsWith('0x') 
+      ? (privateKey as `0x${string}`)
+      : (`0x${privateKey}` as `0x${string}`)
+
+    // Compute wallet address from private key using viem
+    const account = privateKeyToAccount(formattedPrivateKey)
+    const walletAddress = account.address
 
     // Use the actual Hyperliquid exchange from CCXT
     this._exchange = new ccxt.hyperliquid({
