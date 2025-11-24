@@ -162,8 +162,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import type { ApiResponse } from '../../shared/types/index'
+import { useBots } from '../composables/useBots'
 
 interface TradingPair {
   symbol: string
@@ -192,10 +193,17 @@ interface TradingPair {
   info: any
 }
 
+const botsQuery = useBots()
 const loading = ref(false)
 const error = ref('')
 const pairs = ref<TradingPair[]>([])
 const search = ref('')
+
+const firstBotId = computed(() => {
+  return botsQuery.data.value && botsQuery.data.value.length > 0 
+    ? botsQuery.data.value[0].id 
+    : null
+})
 
 const headers = [
   { title: 'Symbol', key: 'symbol', sortable: true },
@@ -221,11 +229,16 @@ const getTypeColor = (type: string) => {
 }
 
 const fetchPairs = async () => {
+  if (!firstBotId.value) {
+    error.value = 'No bots available. Please create a bot first.'
+    return
+  }
+  
   loading.value = true
   error.value = ''
   
   try {
-    const response = await fetch('/api/debug/pairs')
+    const response = await fetch(`/api/bots/${firstBotId.value}/pairs`)
     const result: ApiResponse<TradingPair[]> = await response.json()
     
     if (result.error) {

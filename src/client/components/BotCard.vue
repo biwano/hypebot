@@ -10,7 +10,19 @@
       </div>
       
       <div class="mb-2">
-        <CurrentDirection :pair="bot.pair" />
+        <CurrentDirection :bot-id="bot.id" :pair="bot.pair" />
+      </div>
+      
+      <div class="mb-2 d-flex align-center">
+        <v-icon color="primary" size="small" class="mr-2">mdi-wallet</v-icon>
+        <span class="text-body-2">
+          USDC Balance:
+          <span v-if="accountQuery.isLoading.value" class="text-grey">Loading...</span>
+          <span v-else-if="accountQuery.isError.value" class="text-error">Error</span>
+          <span v-else class="text-primary font-weight-bold">
+            ${{ (accountQuery.data.value?.balance?.USDC?.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+          </span>
+        </span>
       </div>
       
       <div class="text-caption text-grey">
@@ -62,7 +74,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { Bot } from '../../shared/types/index'
+import { useQuery } from '@tanstack/vue-query'
+import type { Bot, ApiResponse, AccountData } from '../../shared/types/index'
 import BotEditDialog from './BotEditDialog.vue'
 import BotDirection from './BotDirection.vue'
 import CurrentDirection from './CurrentDirection.vue'
@@ -82,6 +95,23 @@ const emit = defineEmits<{
 
 const showEditDialog = ref(false)
 
+// Fetch account data for USDC balance
+const accountQuery = useQuery({
+  queryKey: ['account', props.bot.id],
+  queryFn: async (): Promise<AccountData> => {
+    const response = await fetch(`/api/bots/${props.bot.id}/account`)
+    const result: ApiResponse<AccountData> = await response.json()
+    
+    if (result.error) {
+      throw new Error(result.error)
+    }
+    
+    return result.data!
+  },
+  refetchInterval: 300000, // Auto-refresh every 5 minutes
+  retry: 3,
+  retryDelay: 1000
+})
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString()

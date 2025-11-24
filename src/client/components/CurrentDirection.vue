@@ -16,6 +16,7 @@ import type { Position } from 'ccxt'
 import DirectionDisplay from './DirectionDisplay.vue'
 
 interface Props {
+  botId: string
   pair: string
 }
 
@@ -23,9 +24,9 @@ const props = defineProps<Props>()
 
 // Fetch account data to get positions
 const accountQuery = useQuery({
-  queryKey: ['account'],
+  queryKey: ['account', props.botId],
   queryFn: async (): Promise<AccountData> => {
-    const response = await fetch('/api/account')
+    const response = await fetch(`/api/bots/${props.botId}/account`)
     const result: ApiResponse<AccountData> = await response.json()
     
     if (result.error) {

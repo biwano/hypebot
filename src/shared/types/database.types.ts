@@ -38,6 +38,8 @@ export type Database = {
         Row: {
           created_at: string
           desired_direction: number
+          hyperliquid_private_key: string | null
+          hyperliquid_user: string | null
           id: string
           name: string
           pair: string
@@ -46,6 +48,8 @@ export type Database = {
         Insert: {
           created_at?: string
           desired_direction?: number
+          hyperliquid_private_key?: string | null
+          hyperliquid_user?: string | null
           id?: string
           name: string
           pair: string
@@ -54,6 +58,8 @@ export type Database = {
         Update: {
           created_at?: string
           desired_direction?: number
+          hyperliquid_private_key?: string | null
+          hyperliquid_user?: string | null
           id?: string
           name?: string
           pair?: string

@@ -3,18 +3,21 @@ import { PromiseCaching } from 'promise-caching'
 import { CACHE_TIME_SECONDS } from '../../shared/constants'
 import log from './log'
 import { privateKeyToAccount } from 'viem/accounts'
+import type { Bot } from '../../shared/types/index'
 
 export class HyperliquidExchange {
   private _exchange: Exchange | null
   private user: string
   private cache: PromiseCaching
+  private bot: Bot
 
-  constructor() {
-    const privateKey = process.env.HYPERLIQUID_API_PRIVATE_KEY
-    this.user = process.env.HYPERLIQUID_USER!
+  constructor(bot: Bot) {
+    this.bot = bot
+    const privateKey = bot.hyperliquid_private_key
+    this.user = bot.hyperliquid_user!
 
     if (!(privateKey && this.user)) {
-      throw new Error('Hyperliquid API credentials not configured')
+      throw new Error(`Hyperliquid API credentials not configured for bot ${bot.id}`)
     }
 
     // Ensure private key has 0x prefix for viem
@@ -47,48 +50,48 @@ export class HyperliquidExchange {
     return this._exchange
   }
 
-  async getMarket(symbol: string): Promise<Market> {
-    return this.cache.get(`market:${symbol}`, CACHE_TIME_SECONDS, async () => {
-      console.debug(`🔍 Getting market for ${symbol} from exchange`)
+  async getMarket(): Promise<Market> {
+    return this.cache.get(`market:${this.bot.pair}`, CACHE_TIME_SECONDS, async () => {
+      console.debug(`🔍 Getting market for ${this.bot.pair} from exchange`)
       const markets = await this.exchange!.fetchMarkets()
-      const market = markets.find(m => m?.symbol === symbol)
+      const market = markets.find(m => m?.symbol === this.bot.pair)
       if (!market) {
-        throw new Error(`Market not found for ${symbol}`)
+        throw new Error(`Market not found for ${this.bot.pair}`)
       }
       return market
     })
   }
 
-  async getTicker(symbol: string): Promise<Ticker> {
-    return this.cache.get(`ticker:${symbol}`, CACHE_TIME_SECONDS, async () => {
-      console.debug(`🔍 Getting ticker for ${symbol} from exchange`)
-      return await this.exchange!.fetchTicker(symbol)
+  async getTicker(): Promise<Ticker> {
+    return this.cache.get(`ticker:${this.bot.pair}`, CACHE_TIME_SECONDS, async () => {
+      console.debug(`🔍 Getting ticker for ${this.bot.pair} from exchange`)
+      return await this.exchange!.fetchTicker(this.bot.pair)
     })
   }
 
-  public async getPrice(symbol: string, side: 'buy' | 'sell'): Promise<number> {
-    const ticker = await this.getTicker(symbol)
+  public async getPrice(side: 'buy' | 'sell'): Promise<number> {
+    const ticker = await this.getTicker()
     const price = side === 'buy' ? ticker.bid : ticker.ask
     if (!price) {
-      throw new Error(`Unable to get price for ${symbol}`)
+      throw new Error(`Unable to get price for ${this.bot.pair}`)
     }
     return price
   }
 
-  async getOpenOrders(symbol?: string): Promise<Order[]> {
-    return this.cache.get<Order[]>(`openOrders:${symbol || 'all'}`, CACHE_TIME_SECONDS, async () => {
-      console.log(`🔍 Getting open orders for ${symbol || 'all symbols'}`)
-      const orders = await this.exchange!.fetchOpenOrders(symbol, undefined, undefined, { user: this.user })
+  async getOpenOrders(): Promise<Order[]> {
+    return this.cache.get<Order[]>(`openOrders:${this.bot.pair}`, CACHE_TIME_SECONDS, async () => {
+      console.log(`🔍 Getting open orders for ${this.bot.pair}`)
+      const orders = await this.exchange!.fetchOpenOrders(this.bot.pair, undefined, undefined, { user: this.user })
       return orders
     })
   }
 
-  private async calculateLimitPrice(symbol: string, side: 'buy' | 'sell', ticksOffset: number = 5): Promise<number> {
+  private async calculateLimitPrice(side: 'buy' | 'sell', ticksOffset: number = 5): Promise<number> {
     // Get current ticker price
-    const [currentPrice, market] = await Promise.all([this.getPrice(symbol, side),  this.getMarket(symbol)])
+    const [currentPrice, market] = await Promise.all([this.getPrice(side),  this.getMarket()])
     
     if (!currentPrice) {
-      throw new Error(`Unable to get current price for ${symbol}`)
+      throw new Error(`Unable to get current price for ${this.bot.pair}`)
     }
     
     // Get tick size from market data
@@ -106,13 +109,13 @@ export class HyperliquidExchange {
     return limitPrice
   }
 
-  private async cancelAllOrders(symbol: string): Promise<void> {
-    const existingOrders = await this.exchange!.fetchOpenOrders(symbol, undefined, undefined, { user: this.user })
+  private async cancelAllOrders(): Promise<void> {
+    const existingOrders = await this.exchange!.fetchOpenOrders(this.bot.pair, undefined, undefined, { user: this.user })
     if (existingOrders.length > 0) {
-      console.debug(`🔍 Found ${existingOrders.length} existing orders for ${symbol}, cancelling all...`)
+      console.debug(`🔍 Found ${existingOrders.length} existing orders for ${this.bot.pair}, cancelling all...`)
       
       for (const order of existingOrders) {
-        await this.exchange!.cancelOrder(order.id, symbol)
+        await this.exchange!.cancelOrder(order.id, this.bot.pair)
         console.info(`🗑️ Cancelled order ${order.id}`)
       }
       
@@ -121,12 +124,12 @@ export class HyperliquidExchange {
     }
   }
 
-  async placeOrder(symbol: string, side: 'buy' | 'sell', amount: number, leverage: number = 5): Promise<any> {
+  async placeOrder(side: 'buy' | 'sell', amount: number, leverage: number = 5): Promise<any> {
     // Calculate limit price (5 ticks under current price)
     // Delete all existing orders for this symbol before placing new one
-    const [limitPrice, _ ] = await Promise.all([this.calculateLimitPrice(symbol, side, 1), this.cancelAllOrders(symbol)])
+    const [limitPrice, _ ] = await Promise.all([this.calculateLimitPrice(side, 1), this.cancelAllOrders()])
     
-    const order = await this.exchange!.createOrder(symbol, 'limit', side, amount, limitPrice, {
+    const order = await this.exchange!.createOrder(this.bot.pair, 'limit', side, amount, limitPrice, {
       leverage: leverage
     })
     
@@ -154,11 +157,11 @@ export class HyperliquidExchange {
     })
   }
 
-  async getPosition(symbol: string): Promise<Position> {
+  async getPosition(): Promise<Position> {
     const positions = await this.getPositions()
-    const position = positions.find(p => p.symbol === symbol)
+    const position = positions.find(p => p.symbol === this.bot.pair)
     if (!position) {
-      throw new Error(`Position not found for ${symbol}`)
+      throw new Error(`Position not found for ${this.bot.pair}`)
     }
     return position
   }
