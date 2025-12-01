@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon -w src/server -x tsx src/server/main.ts",
+    "dev:prod": "nodemon --exitcrash -w src/server -x tsx src/server/main.ts",
     "start": "NODE_ENV=production tsx src/server/main.ts",
     "build": "vite build",
     "typecheck": "vue-tsc -w",
