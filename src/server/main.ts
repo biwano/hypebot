@@ -5,8 +5,6 @@ import ViteExpress from "vite-express";
 
 // Import API routes
 import botRoutes from './routes/bots'
-import accountRoutes from './routes/account'
-import debugRoutes from './routes/debug'
 
 const app = express();
 
@@ -16,15 +14,15 @@ app.use(express.json())
 
 // API routes
 app.use('/api/bots', botRoutes)
-app.use('/api/account', accountRoutes)
-app.use('/api/debug', debugRoutes)
 
 // Health check
 app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-ViteExpress.listen(app, 3000, () => {
-  console.log("🚀 HypeBot Server is listening on port 3000...")
-  console.log("📊 Health check: http://localhost:3000/api/health")
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+
+ViteExpress.listen(app, PORT, () => {
+  console.log(`🚀 HypeBot Server is listening on port ${PORT}...`)
+  console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
 });

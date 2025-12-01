@@ -5,9 +5,6 @@
         <div class="d-flex justify-space-between align-center mb-6">
           <div>
             <h1 class="text-h4">Trading Bots</h1>
-            <div class="mt-2">
-              <USDCBalance />
-            </div>
           </div>
           <v-btn
             color="primary"
@@ -93,7 +90,6 @@
 import { ref } from 'vue'
 import BotCard from './BotCard.vue'
 import BotCreateDialog from './BotCreateDialog.vue'
-import USDCBalance from './USDCBalance.vue'
 import { useBots } from '../composables/useBots'
 
 const showCreateDialog = ref(false)

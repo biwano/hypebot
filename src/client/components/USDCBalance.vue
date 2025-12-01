@@ -36,11 +36,22 @@ import type { ApiResponse, AccountData } from '../../shared/types/index'
 import CurrentPositions from './CurrentPositions.vue'
 import OpenOrders from './OpenOrders.vue'
 
+interface Props {
+  botId?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  botId: undefined
+})
+
 // Fetch account data using TanStack Query
 const accountQuery = useQuery({
-  queryKey: ['account'],
+  queryKey: ['account', props.botId],
   queryFn: async (): Promise<AccountData> => {
-    const response = await fetch('/api/account')
+    if (!props.botId) {
+      throw new Error('botId is required')
+    }
+    const response = await fetch(`/api/bots/${props.botId}/account`)
     const result: ApiResponse<AccountData> = await response.json()
     
     if (result.error) {

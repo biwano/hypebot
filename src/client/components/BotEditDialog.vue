@@ -26,6 +26,20 @@
             hint="1 = Long, -1 = Short, 0 = Exit"
           ></v-text-field>
 
+          <v-text-field
+            v-model="form.hyperliquid_user"
+            label="Hyperliquid User"
+            hint="Hyperliquid user identifier"
+          ></v-text-field>
+
+          <v-text-field
+            v-model="form.hyperliquid_private_key"
+            label="Hyperliquid Private Key"
+            type="password"
+            hint="Leave empty to keep existing key"
+            autocomplete="off"
+          ></v-text-field>
+
           <v-alert
             v-if="error"
             type="error"
@@ -83,7 +97,9 @@ const formRef = ref()
 const form = ref({
   name: '',
   pair: '',
-  desired_direction: 0
+  desired_direction: 0,
+  hyperliquid_user: '',
+  hyperliquid_private_key: ''
 })
 
 // Validation rules
@@ -115,7 +131,9 @@ watch(dialog, (newVal) => {
     form.value = {
       name: props.bot.name,
       pair: props.bot.pair,
-      desired_direction: props.bot.desired_direction || 0
+      desired_direction: props.bot.desired_direction || 0,
+      hyperliquid_user: props.bot.hyperliquid_user || '',
+      hyperliquid_private_key: '' // Never populate private key for security
     }
     error.value = ''
     // Reset form validation
@@ -129,15 +147,25 @@ const updateBotMutation = useUpdateBot()
 
 const updateBot = async () => {
   try {
-      const updatedBot = await updateBotMutation.mutateAsync({
-      ...form.value,
+    // Prepare update payload - exclude empty private key
+    const updatePayload: any = {
+      name: form.value.name,
+      pair: form.value.pair,
+      desired_direction: form.value.desired_direction,
+      hyperliquid_user: form.value.hyperliquid_user || null,
       id: props.bot.id
-  })
-  emit('update', updatedBot)
-  dialog.value = false
+    }
+    
+    // Only include private key if it's not empty
+    if (form.value.hyperliquid_private_key && form.value.hyperliquid_private_key.trim()) {
+      updatePayload.hyperliquid_private_key = form.value.hyperliquid_private_key
+    }
+    
+    const updatedBot = await updateBotMutation.mutateAsync(updatePayload)
+    emit('update', updatedBot)
+    dialog.value = false
   } catch (error) {
     console.error('Error updating bot:', error)
   }
-  
 }
 </script>

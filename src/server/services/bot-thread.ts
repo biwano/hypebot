@@ -7,11 +7,10 @@ import { botExecutor } from './bot-executor'
 
 export class BotThread {
   private botId: string
-  private exchange: HyperliquidExchange
+  private exchange: HyperliquidExchange | null = null
 
   constructor(botId: string) {
     this.botId = botId
-    this.exchange = new HyperliquidExchange()
   }
 
   async execute(): Promise<void> {
@@ -35,9 +34,16 @@ export class BotThread {
     if (error) {
         throw new Error(`Error fetching bot for id ${this.botId}: ${error.message}`)
     }
+    
+    // Initialize exchange with bot credentials
+    if (!this.exchange) {
+      this.exchange = new HyperliquidExchange(bot)
+    }
+    const exchange = this.exchange
+    
     // Get current position and collateral
     if (bot.desired_direction == 0) {
-        const currentPosition = await this.exchange.getPosition(bot.pair)
+        const currentPosition = await exchange.getPosition()
         if (!currentPosition.contractSize || !currentPosition.contracts || !currentPosition.side) {
             return true
         }
@@ -45,13 +51,13 @@ export class BotThread {
         const amountToken = currentPosition.contractSize  * currentPosition.contracts
 
         await log.info(this.botId, `📝 Placing ${side} order for ${amountToken}. Desired direction: ${bot.desired_direction}`)
-        const order = await this.exchange.placeOrder(bot.pair, side, amountToken, 5)
+        const order = await exchange.placeOrder(side, amountToken, 5)
         log.debug(this.botId, `✅ Order placed: ${order.id}`)
     
     } else {
         const [currentPosition, currentCollateral] = await Promise.all([
-        this.exchange.getPosition(bot.pair),
-        this.exchange.getAccountCollateral()
+        exchange.getPosition(),
+        exchange.getAccountCollateral()
         ])
         
         const currentMultiplier = currentPosition?.side === 'long' ? 1 : -1
@@ -77,12 +83,12 @@ export class BotThread {
         }
 
         // Get current price and convert to token amount
-        const price = await this.exchange.getPrice(bot.pair, side)
+        const price = await exchange.getPrice(side)
         const amountToken = amount / price
         
         // Place the order
         await log.info(this.botId, `📝 Placing ${side} order for ${amountToken}. Desired direction: ${bot.desired_direction}`)
-        const order = await this.exchange.placeOrder(bot.pair, side, amountToken, 5)
+        const order = await exchange.placeOrder(side, amountToken, 5)
         log.info(this.botId, `✅ Order placed: ${order.id}`)
     }
     return false
